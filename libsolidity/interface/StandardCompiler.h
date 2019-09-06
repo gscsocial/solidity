@@ -68,6 +68,7 @@ private:
 		OptimiserSettings optimiserSettings = OptimiserSettings::minimal();
 		std::map<std::string, h160> libraries;
 		bool metadataLiteralSources = false;
+		std::string metadataHash;
 		Json::Value outputSelection;
 	};
 

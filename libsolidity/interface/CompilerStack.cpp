@@ -159,6 +159,13 @@ void CompilerStack::useMetadataLiteralSources(bool _metadataLiteralSources)
 	m_metadataLiteralSources = _metadataLiteralSources;
 }
 
+void CompilerStack::setMetadataHash(string _metadataHash)
+{
+	if (m_stackState >= ParsingPerformed)
+		BOOST_THROW_EXCEPTION(CompilerError() << errinfo_comment("Must set metadata hash before parsing."));
+	m_metadataHash = std::move(_metadataHash);
+}
+
 void CompilerStack::addSMTLib2Response(h256 const& _hash, string const& _response)
 {
 	if (m_stackState >= ParsingPerformed)
@@ -182,6 +189,7 @@ void CompilerStack::reset(bool _keepSettings)
 		m_generateEWasm = false;
 		m_optimiserSettings = OptimiserSettings::minimal();
 		m_metadataLiteralSources = false;
+		m_metadataHash = "ipfs";
 	}
 	m_globalContext.reset();
 	m_scopes.clear();
@@ -1170,6 +1178,8 @@ string CompilerStack::createMetadata(Contract const& _contract) const
 	for (auto const& library: m_libraries)
 		meta["settings"]["libraries"][library.first] = "0x" + toHex(library.second.asBytes());
 
+	meta["settings"]["hash"] = m_metadataHash;
+
 	meta["output"]["abi"] = contractABI(_contract);
 	meta["output"]["userdoc"] = natspecUser(_contract);
 	meta["output"]["devdoc"] = natspecDev(_contract);
@@ -1262,8 +1272,21 @@ private:
 
 bytes CompilerStack::createCBORMetadata(string const& _metadata, bool _experimentalMode)
 {
+	if (m_metadataHash == "none")
+		return {};
+
 	MetadataCBOREncoder encoder;
-	encoder.pushBytes("bzzr1", dev::bzzr1Hash(_metadata).asBytes());
+
+	if (m_metadataHash == "ipfs")
+	{
+		solAssert(_metadata.length() < 1024 * 256, "Metadata too large.");
+		encoder.pushBytes("ipfs", dev::ipfsHash(_metadata));
+	}
+	else if (m_metadataHash == "bzzr1")
+		encoder.pushBytes("bzzr1", dev::bzzr1Hash(_metadata).asBytes());
+	else
+		solAssert(false, "Invalid metadata hash");
+
 	if (_experimentalMode)
 		encoder.pushBool("experimental", true);
 	if (m_release)

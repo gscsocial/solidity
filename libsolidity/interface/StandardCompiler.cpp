@@ -378,9 +378,16 @@ boost::optional<Json::Value> checkOptimizerDetail(Json::Value const& _details, s
 
 boost::optional<Json::Value> checkMetadataKeys(Json::Value const& _input)
 {
-	if (_input.isObject() && _input.isMember("useLiteralContent") && !_input["useLiteralContent"].isBool())
-		return formatFatalError("JSONError", "\"settings.metadata.useLiteralContent\" must be Boolean");
-	static set<string> keys{"useLiteralContent"};
+	if (_input.isObject())
+	{
+		if (_input.isMember("useLiteralContent") && !_input["useLiteralContent"].isBool())
+			return formatFatalError("JSONError", "\"settings.metadata.useLiteralContent\" must be Boolean");
+
+		static set<string> hashes{"ipfs", "bzzr1", "none"};
+		if (_input.isMember("hash") && !hashes.count(_input["hash"].asString()))
+			return formatFatalError("JSONError", "\"settings.metadata.hash\" must be \"ipfs\", \"bzzr1\" or \"none\"");
+	}
+	static set<string> keys{"useLiteralContent", "hash"};
 	return checkKeys(_input, keys, "settings.metadata");
 }
 
@@ -710,6 +717,7 @@ boost::variant<StandardCompiler::InputsAndSettings, Json::Value> StandardCompile
 		return *result;
 
 	ret.metadataLiteralSources = metadataSettings.get("useLiteralContent", Json::Value(false)).asBool();
+	ret.metadataHash = metadataSettings.get("hash", Json::Value("ipfs")).asString();
 
 	Json::Value outputSelection = settings.get("outputSelection", Json::Value());
 
@@ -735,6 +743,7 @@ Json::Value StandardCompiler::compileSolidity(StandardCompiler::InputsAndSetting
 	compilerStack.setOptimiserSettings(std::move(_inputsAndSettings.optimiserSettings));
 	compilerStack.setLibraries(_inputsAndSettings.libraries);
 	compilerStack.useMetadataLiteralSources(_inputsAndSettings.metadataLiteralSources);
+	compilerStack.setMetadataHash(std::move(_inputsAndSettings.metadataHash));
 	compilerStack.setRequestedContractNames(requestedContractNames(_inputsAndSettings.outputSelection));
 
 	compilerStack.enableIRGeneration(isIRRequested(_inputsAndSettings.outputSelection));

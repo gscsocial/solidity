@@ -171,6 +171,11 @@ public:
 	/// Must be set before parsing.
 	void useMetadataLiteralSources(bool _metadataLiteralSources);
 
+	/// Sets whether and which hash should be used
+	/// to store the metadata in the bytecode.
+	/// @param _metadataHash can be "ipfs", "bzzr1", or "none".
+	void setMetadataHash(std::string _metadataHash);
+
 	/// Sets the sources. Must be set before parsing.
 	void setSources(StringMap _sources);
 
@@ -418,6 +423,7 @@ private:
 	langutil::ErrorList m_errorList;
 	langutil::ErrorReporter m_errorReporter;
 	bool m_metadataLiteralSources = false;
+	std::string m_metadataHash = "ipfs";
 	bool m_parserErrorRecovery = false;
 	State m_stackState = Empty;
 	/// Whether or not there has been an error during processing.

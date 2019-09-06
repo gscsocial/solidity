@@ -24,6 +24,7 @@
 #include <libsolidity/interface/CompilerStack.h>
 #include <libsolidity/interface/Version.h>
 #include <libdevcore/SwarmHash.h>
+#include <libdevcore/IpfsHash.h>
 #include <libdevcore/JSON.h>
 
 using namespace std;
@@ -60,28 +61,49 @@ BOOST_AUTO_TEST_CASE(metadata_stamp)
 		}
 	)";
 	for (auto release: std::set<bool>{true, VersionIsRelease})
-	{
-		CompilerStack compilerStack;
-		compilerStack.overwriteReleaseFlag(release);
-		compilerStack.setSources({{"", std::string(sourceCode)}});
-		compilerStack.setEVMVersion(dev::test::Options::get().evmVersion());
-		compilerStack.setOptimiserSettings(dev::test::Options::get().optimize);
-		BOOST_REQUIRE_MESSAGE(compilerStack.compile(), "Compiling contract failed");
-		bytes const& bytecode = compilerStack.runtimeObject("test").bytecode;
-		std::string const& metadata = compilerStack.metadata("test");
-		BOOST_CHECK(dev::test::isValidMetadata(metadata));
-		bytes hash = dev::bzzr1Hash(metadata).asBytes();
-		BOOST_REQUIRE(hash.size() == 32);
-		auto const cborMetadata = requireParsedCBORMetadata(bytecode);
-		BOOST_CHECK(cborMetadata.size() == 2);
-		BOOST_CHECK(cborMetadata.count("solc") == 1);
-		if (release)
-			BOOST_CHECK(cborMetadata.at("solc") == toHex(VersionCompactBytes));
-		else
-			BOOST_CHECK(cborMetadata.at("solc") == VersionStringStrict);
-		BOOST_CHECK(cborMetadata.count("bzzr1") == 1);
-		BOOST_CHECK(cborMetadata.at("bzzr1") == toHex(hash));
-	}
+		for (auto metadataHash: set<string>{"ipfs", "bzzr1", "none"})
+		{
+			CompilerStack compilerStack;
+			compilerStack.overwriteReleaseFlag(release);
+			compilerStack.setSources({{"", std::string(sourceCode)}});
+			compilerStack.setEVMVersion(dev::test::Options::get().evmVersion());
+			compilerStack.setOptimiserSettings(dev::test::Options::get().optimize);
+			compilerStack.setMetadataHash(metadataHash);
+			BOOST_REQUIRE_MESSAGE(compilerStack.compile(), "Compiling contract failed");
+			bytes const& bytecode = compilerStack.runtimeObject("test").bytecode;
+			std::string const& metadata = compilerStack.metadata("test");
+			BOOST_CHECK(dev::test::isValidMetadata(metadata));
+
+			if (metadataHash == "none")
+			{
+				bytes cborMetadata = dev::test::onlyMetadata(bytecode);
+				BOOST_REQUIRE(cborMetadata.empty());
+			}
+			else
+			{
+				bytes hash;
+				if (metadataHash == "ipfs")
+				{
+					hash = dev::ipfsHash(metadata);
+					BOOST_REQUIRE(hash.size() == 34);
+				}
+				else
+				{
+					hash = dev::bzzr1Hash(metadata).asBytes();
+					BOOST_REQUIRE(hash.size() == 32);
+				}
+
+				auto const cborMetadata = requireParsedCBORMetadata(bytecode);
+				BOOST_CHECK(cborMetadata.size() == 2);
+				BOOST_CHECK(cborMetadata.count("solc") == 1);
+				if (release)
+					BOOST_CHECK(cborMetadata.at("solc") == toHex(VersionCompactBytes));
+				else
+					BOOST_CHECK(cborMetadata.at("solc") == VersionStringStrict);
+				BOOST_CHECK(cborMetadata.count(metadataHash) == 1);
+				BOOST_CHECK(cborMetadata.at(metadataHash) == toHex(hash));
+			}
+		}
 }
 
 BOOST_AUTO_TEST_CASE(metadata_stamp_experimental)
@@ -94,31 +116,52 @@ BOOST_AUTO_TEST_CASE(metadata_stamp_experimental)
 			function g(function(uint) external returns (uint) x) public {}
 		}
 	)";
-	for(auto release: std::set<bool>{true, VersionIsRelease})
-	{
-		CompilerStack compilerStack;
-		compilerStack.overwriteReleaseFlag(release);
-		compilerStack.setSources({{"", std::string(sourceCode)}});
-		compilerStack.setEVMVersion(dev::test::Options::get().evmVersion());
-		compilerStack.setOptimiserSettings(dev::test::Options::get().optimize);
-		BOOST_REQUIRE_MESSAGE(compilerStack.compile(), "Compiling contract failed");
-		bytes const& bytecode = compilerStack.runtimeObject("test").bytecode;
-		std::string const& metadata = compilerStack.metadata("test");
-		BOOST_CHECK(dev::test::isValidMetadata(metadata));
-		bytes hash = dev::bzzr1Hash(metadata).asBytes();
-		BOOST_REQUIRE(hash.size() == 32);
-		auto const cborMetadata = requireParsedCBORMetadata(bytecode);
-		BOOST_CHECK(cborMetadata.size() == 3);
-		BOOST_CHECK(cborMetadata.count("solc") == 1);
-		if (release)
-			BOOST_CHECK(cborMetadata.at("solc") == toHex(VersionCompactBytes));
-		else
-			BOOST_CHECK(cborMetadata.at("solc") == VersionStringStrict);
-		BOOST_CHECK(cborMetadata.count("bzzr1") == 1);
-		BOOST_CHECK(cborMetadata.at("bzzr1") == toHex(hash));
-		BOOST_CHECK(cborMetadata.count("experimental") == 1);
-		BOOST_CHECK(cborMetadata.at("experimental") == "true");
-	}
+	for (auto release: set<bool>{true, VersionIsRelease})
+		for (auto metadataHash: set<string>{"ipfs", "bzzr1", "none"})
+		{
+			CompilerStack compilerStack;
+			compilerStack.overwriteReleaseFlag(release);
+			compilerStack.setSources({{"", std::string(sourceCode)}});
+			compilerStack.setEVMVersion(dev::test::Options::get().evmVersion());
+			compilerStack.setOptimiserSettings(dev::test::Options::get().optimize);
+			compilerStack.setMetadataHash(metadataHash);
+			BOOST_REQUIRE_MESSAGE(compilerStack.compile(), "Compiling contract failed");
+			bytes const& bytecode = compilerStack.runtimeObject("test").bytecode;
+			std::string const& metadata = compilerStack.metadata("test");
+			BOOST_CHECK(dev::test::isValidMetadata(metadata));
+
+			if (metadataHash == "none")
+			{
+				bytes cborMetadata = dev::test::onlyMetadata(bytecode);
+				BOOST_REQUIRE(cborMetadata.empty());
+			}
+			else
+			{
+				bytes hash;
+				if (metadataHash == "ipfs")
+				{
+					hash = dev::ipfsHash(metadata);
+					BOOST_REQUIRE(hash.size() == 34);
+				}
+				else
+				{
+					hash = dev::bzzr1Hash(metadata).asBytes();
+					BOOST_REQUIRE(hash.size() == 32);
+				}
+
+				auto const cborMetadata = requireParsedCBORMetadata(bytecode);
+				BOOST_CHECK(cborMetadata.size() == 3);
+				BOOST_CHECK(cborMetadata.count("solc") == 1);
+				if (release)
+					BOOST_CHECK(cborMetadata.at("solc") == toHex(VersionCompactBytes));
+				else
+					BOOST_CHECK(cborMetadata.at("solc") == VersionStringStrict);
+				BOOST_CHECK(cborMetadata.count(metadataHash) == 1);
+				BOOST_CHECK(cborMetadata.at(metadataHash) == toHex(hash));
+				BOOST_CHECK(cborMetadata.count("experimental") == 1);
+				BOOST_CHECK(cborMetadata.at("experimental") == "true");
+			}
+		}
 }
 
 BOOST_AUTO_TEST_CASE(metadata_relevant_sources)
