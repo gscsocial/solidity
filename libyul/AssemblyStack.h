@@ -61,7 +61,7 @@ public:
 	enum class Machine { EVM, EVM15, eWasm };
 
 	AssemblyStack():
-		AssemblyStack(langutil::EVMVersion{}, Language::Assembly, dev::solidity::OptimiserSettings::none())
+		AssemblyStack(langutil::EVMVersion{}, Language::StrictAssembly, dev::solidity::OptimiserSettings::none())
 	{}
 	AssemblyStack(langutil::EVMVersion _evmVersion, Language _language, dev::solidity::OptimiserSettings _optimiserSettings):
 		m_language(_language),
