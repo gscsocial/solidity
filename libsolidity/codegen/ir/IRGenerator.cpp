@@ -267,7 +267,9 @@ string IRGenerator::dispatchRoutine(ContractDefinition const& _contract)
 			</cases>
 			default {}
 		}
-		<fallback>
+		switch calldatasize()
+		case 0 { <receiveEther> }
+		default { <fallback> }
 	)X");
 	t("shr224", m_utils.shiftRightFunction(224));
 	vector<map<string, string>> functions;
@@ -313,6 +315,11 @@ string IRGenerator::dispatchRoutine(ContractDefinition const& _contract)
 	}
 	else
 		t("fallback", "revert(0, 0)");
+	if (FunctionDefinition const* etherReceiver = _contract.etherReceiverFunction())
+		// TODO: should this revert for iszero(callvalue())?
+		t("receiveEther", generateFunction(*etherReceiver) + "() stop()");
+	else
+		t("receiveEther", "revert(0, 0)");
 	return t.render();
 }
 

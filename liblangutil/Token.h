@@ -157,6 +157,7 @@ namespace langutil
 	K(Emit, "emit", 0)                                                 \
 	K(Event, "event", 0)                                               \
 	K(External, "external", 0)                                         \
+	K(Fallback, "fallback", 0)                                         \
 	K(For, "for", 0)                                                   \
 	K(Function, "function", 0)                                         \
 	K(Hex, "hex", 0)                                                   \
